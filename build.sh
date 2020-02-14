@@ -7,12 +7,11 @@ echo "------------------------------------------------------"
 
 pathtoclang=/root/clang
 pathtogcc=/root/aarch64-linux-android-4.9
-password=
 
 cd
 git clone https://github.com/RaghuVarma331/aarch64-linux-android-4.9.git -b master --depth=1 aarch64-linux-android-4.9
 git clone https://github.com/RaghuVarma331/clang.git -b clang-r353983c --depth=1 clang
-mkdir Black_Caps-Edition
+mkdir kiwis-kernel
 
 
 cd kernel
@@ -28,16 +27,12 @@ make -j$(nproc --all) O=out \
 cp -r out/arch/arm64/boot/Image.gz-dtb /root/kernel/DRG_sprout
 cd DRG_sprout
 zip -r Black_Caps-Edition-10.0-CLANG-DRG_sprout-$(date +"%Y%m%d").zip META-INF patch tools Image.gz-dtb anykernel.sh
-cp -r Black_Caps-Edition-10.0-CLANG-DRG_sprout-$(date +"%Y%m%d").zip  /root/Black_Caps-Edition
+cp -r Black_Caps-Edition-10.0-CLANG-DRG_sprout-$(date +"%Y%m%d").zip  /root/kiwis-kernel
 cd
-cd Black_Caps-Edition
-clear
-echo Sending build to sourceforge..
-sshpass -p $password rsync -avP -e ssh Black_Caps**.zip raghuvarma331@frs.sourceforge.net:/home/frs/project/drg-sprout/Black_Caps-Edition
 
 
 echo "--------------------------------------------"
 echo "All Right now flash at your own risk"
-echo "Flashable Zip located in Black_Caps-Edition Folder"
+echo "Flashable Zip located in kiwis-kernel Folder"
 echo "Good Bye ..!! @ RaghuVarma "
 echo "--------------------------------------------"
