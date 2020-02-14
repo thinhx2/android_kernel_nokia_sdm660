@@ -936,6 +936,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 			bytes += (s32) sprintf((char *)&data[bytes], "0x%02X,", module_cfg[i]);
 		}
 		bytes += (s32) sprintf((char *)&data[bytes], "\n\n");
+		ret = fwrite(data, bytes, 1, fp);
 		bytes = 0;
 		if (ret < 0) {
 			WARNING("write to file fail.");
@@ -949,6 +950,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 					bytes += (s32) sprintf((char *)&data[bytes], "%d,", max_limit_value[i + j * sys.sc_sensor_num]);
 				}
 				bytes += (s32) sprintf((char *)&data[bytes], "\n");
+				ret = fwrite(data, bytes, 1, fp);
 				bytes = 0;
 				if (ret < 0) {
 					WARNING("write to file fail.");
@@ -966,6 +968,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 				/* pr_err("max[%d]%d",i,max_key_limit_value[i]); */
 			}
 			bytes += (s32) sprintf((char *)&data[bytes], "\n");
+			ret = fwrite(data, bytes, 1, fp);
 			bytes = 0;
 			if (ret < 0) {
 				WARNING("write to file fail.");
@@ -980,6 +983,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 					bytes += (s32) sprintf((char *)&data[bytes], "%d,", min_limit_value[i + j * sys.sc_sensor_num]);
 				}
 				bytes += (s32) sprintf((char *)&data[bytes], "\n");
+				ret = fwrite(data, bytes, 1, fp);
 				bytes = 0;
 				if (ret < 0) {
 					WARNING("write to file fail.");
@@ -996,6 +1000,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 				bytes += (s32) sprintf((char *)&data[bytes], "%d,", min_key_limit_value[j++]);
 			}
 			bytes += (s32) sprintf((char *)&data[bytes], "\n");
+			ret = fwrite(data, bytes, 1, fp);
 			if (ret < 0) {
 				WARNING("write to file fail.");
 				goto exit_save_testing_data;
@@ -1009,6 +1014,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 					bytes += (s32) sprintf((char *)&data[bytes], "%ld,", accord_limit[i + j * sys.sc_sensor_num]);
 				}
 				bytes += (s32) sprintf((char *)&data[bytes], "\n");
+				ret = fwrite(data, bytes, 1, fp);
 				bytes = 0;
 				if (ret < 0) {
 					WARNING("write to file fail.");
@@ -1017,6 +1023,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 			}
 
 			bytes = (s32) sprintf((char *)data, "\n");
+			ret = fwrite(data, bytes, 1, fp);
 			if (ret < 0) {
 				WARNING("write to file fail.");
 				goto exit_save_testing_data;
@@ -1029,6 +1036,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 						bytes += (s32) sprintf((char *)&data[bytes], "%ld,", accord_line_limit[i + j * sys.sc_sensor_num]);
 					}
 					bytes += (s32) sprintf((char *)&data[bytes], "\n");
+					ret = fwrite(data, bytes, 1, fp);
 					bytes = 0;
 					if (ret < 0) {
 						WARNING("write to file fail.");
@@ -1037,6 +1045,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 				}
 
 				bytes = (s32) sprintf((char *)data, "\n");
+				ret = fwrite(data, bytes, 1, fp);
 				if (ret < 0) {
 					WARNING("write to file fail.");
 					goto exit_save_testing_data;
@@ -1045,6 +1054,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 		}
 
 		bytes = (s32) sprintf((char *)data, " Rawdata\n");
+		ret = fwrite(data, bytes, 1, fp);
 		if (ret < 0) {
 			WARNING("write to file fail.");
 			goto exit_save_testing_data;
@@ -1052,6 +1062,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 	}
 
 	bytes = (s32) sprintf((char *)data, "No.%d\n", current_data_index);
+	ret = fwrite(data, bytes, 1, fp);
 	if (ret < 0) {
 		WARNING("write to file fail.");
 		goto exit_save_testing_data;
@@ -1073,6 +1084,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 			average += tmp;
 		}
 		bytes += (s32) sprintf((char *)&data[bytes], "\n");
+		ret = fwrite(data, bytes, 1, fp);
 		if (ret < 0) {
 			WARNING("write to file fail.");
 			goto exit_save_testing_data;
@@ -1089,6 +1101,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 			bytes += (s32) sprintf((char *)&data[bytes], "%d,", current_data_temp[i + sys.sc_sensor_num * sys.sc_driver_num]);
 		}
 		bytes += (s32) sprintf((char *)&data[bytes], "\n");
+		ret = fwrite(data, bytes, 1, fp);
 		if (ret < 0) {
 			WARNING("write to file fail.");
 			goto exit_save_testing_data;
@@ -1096,6 +1109,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 	}
 
 	bytes = (s32) sprintf((char *)data, "  Maximum:%d  Minimum:%d  Average:%d\n\n", max, min, average);
+	ret = fwrite(data, bytes, 1, fp);
 	if (ret < 0) {
 		WARNING("write to file fail.");
 		goto exit_save_testing_data;
@@ -1103,6 +1117,7 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 
 	if ((test_types & _ACCORD_CHECK) != 0) {
 		bytes = (s32) sprintf((char *)data, "Channel_Accord :(%d)\n", FLOAT_AMPLIFIER);
+		ret = fwrite(data, bytes, 1, fp);
 		if (ret < 0) {
 			WARNING("write to file fail.");
 			goto exit_save_testing_data;
@@ -1113,12 +1128,14 @@ static s32 _save_testing_data(char *save_test_data_dir, int test_types)
 				bytes += (s32) sprintf((char *)&data[bytes], "%ld,", channel_max_accord[i + j * sys.sc_sensor_num]);
 			}
 			bytes += (s32) sprintf((char *)&data[bytes], "\n");
+			ret = fwrite(data, bytes, 1, fp);
 			if (ret < 0) {
 				WARNING("write to file fail.");
 				goto exit_save_testing_data;
 			}
 		}
 		bytes = (s32) sprintf((char *)data, "\n");
+		ret = fwrite(data, bytes, 1, fp);
 		if (ret < 0) {
 			WARNING("write to file fail.");
 			goto exit_save_testing_data;
@@ -1314,6 +1331,7 @@ static s32 _save_test_result_data(char *save_test_data_dir, int test_types, u8 *
 		}
 	}
 
+	ret = fwrite(data, bytes, 1, fp);
 
 	if (ret < 0) {
 
@@ -1400,6 +1418,7 @@ static s32 _save_test_result_data(char *save_test_data_dir, int test_types, u8 *
 			bytes += (s32) sprintf((char *)&data[bytes], "pass\n");
 
 		}
+		ret = fwrite(data, bytes, 1, fp);
 
 		if (ret < 0) {
 
