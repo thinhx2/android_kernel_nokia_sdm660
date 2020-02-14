@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,7 +31,6 @@
 #include "peripheral-loader.h"
 #include "pil-q6v5.h"
 #include "pil-msa.h"
-#include "../../fih/fih_ramtable.h"
 
 /* Q6 Register Offsets */
 #define QDSP6SS_RST_EVB			0x010
@@ -551,10 +550,6 @@ err_restart:
 err_power:
 	return ret;
 }
-#ifdef CONFIG_FIH_NV
-static bool fih_nv_assigned = false;
-#define FIH_NV_SIZE (NV_RF_SIZE + NV_CUST_SIZE + NV_DEFAULT_SIZE)
-#endif
 
 int pil_mss_reset_load_mba(struct pil_desc *pil)
 {
@@ -572,25 +567,6 @@ int pil_mss_reset_load_mba(struct pil_desc *pil)
 	struct device *dma_dev = md->mba_mem_dev_fixed ?: &md->mba_mem_dev;
 
 	trace_pil_func(__func__);
-
-#ifdef CONFIG_FIH_NV
-	pr_err("%s: %s\n", __func__, pil->name);
-	if (!(strncmp(pil->name, "modem", sizeof(char)*5))) {
-		if (!fih_nv_assigned) {
-			pr_err("%s: Assign %s memory 0x%x 0x%x (initial)\n", __func__, pil->name, FIH_RAM_BASE, FIH_NV_SIZE);
-			ret = pil_assign_mem_to_subsys_and_linux(pil, FIH_RAM_BASE, FIH_NV_SIZE);
-			if (ret) {
-				pr_err("%s: Assign %s memory Error !!!!!!\n", __func__, pil->name);
-				fih_nv_assigned = false;
-				dev_err(pil->dev, "Failed to assign %s memory, ret - %d\n", pil->name, ret);
-			}
-			fih_nv_assigned = true;
-		} else {
-			pr_err("%s: Assign %s memory 0x%x 0x%x (re-init)\n", __func__, pil->name, FIH_RAM_BASE, FIH_NV_SIZE);
-		}
-	}
-#endif
-
 	fw_name_p = drv->non_elf_image ? fw_name_legacy : fw_name;
 	ret = request_firmware(&fw, fw_name_p, pil->dev);
 	if (ret) {
@@ -709,7 +685,7 @@ err_invalid_fw:
 }
 
 static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
-		size_t size, phys_addr_t phy_addr, size_t phy_sz)
+					size_t size)
 {
 	struct modem_data *drv = dev_get_drvdata(pil->dev);
 	void *mdata_virt;
@@ -739,19 +715,6 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 	wmb();
 
 	if (pil->subsys_vmid > 0) {
-		/**
-		  * In case of modem ssr,we need to assign memory back to linux.
-		  * This is not true after cold boot since linux already owns
-		  * it. Also for secure boot devices, modem memory has to be
-		  * released after MBA is booted
-		  */
-		if (pil->modem_ssr) {
-			ret = pil_assign_mem_to_linux(pil, phy_addr, phy_sz);
-			if (ret)
-				dev_err(pil->dev,
-					"Failed to assign to linux, ret- %d\n",
-					ret);
-		}
 		ret = pil_assign_mem_to_subsys(pil, mdata_phys,
 							ALIGN(size, SZ_4K));
 		if (ret) {
@@ -806,8 +769,7 @@ fail:
 }
 
 static int pil_msa_mss_reset_mba_load_auth_mdt(struct pil_desc *pil,
-		const u8 *metadata, size_t size,
-		phys_addr_t modem_reg, size_t sz_modem_reg)
+				  const u8 *metadata, size_t size)
 {
 	int ret;
 
@@ -815,8 +777,7 @@ static int pil_msa_mss_reset_mba_load_auth_mdt(struct pil_desc *pil,
 	if (ret)
 		return ret;
 
-	return pil_msa_auth_modem_mdt(pil, metadata, size,
-			modem_reg, sz_modem_reg);
+	return pil_msa_auth_modem_mdt(pil, metadata, size);
 }
 
 static int pil_msa_mba_verify_blob(struct pil_desc *pil, phys_addr_t phy_addr,

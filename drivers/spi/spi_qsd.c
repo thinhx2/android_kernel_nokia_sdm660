@@ -250,13 +250,11 @@ static long msm_spi_clk_max_rate(struct clk *clk, unsigned long rate)
 	int  max_steps = 10;
 
 	cur =  clk_round_rate(clk, rate);
-	pr_err("cur =%ld,rate=%ld",cur,rate);
 	if (cur == rate)
 		return rate;
 
 	/* if we got here then: cur > rate */
 	lowest_available =  clk_round_rate(clk, 0);
-	pr_err("lowest_available =%ld,rate=%ld",lowest_available,rate);
 	if (lowest_available > rate)
 		return -EINVAL;
 
@@ -281,7 +279,6 @@ static long msm_spi_clk_max_rate(struct clk *clk, unsigned long rate)
 			step_size >>= 1;
 		 }
 	}
-	pr_err("nearest_low =%ld,rate=%ld",nearest_low,rate);
 	return nearest_low;
 }
 
@@ -2586,9 +2583,6 @@ static int msm_spi_probe(struct platform_device *pdev)
 	int                     rc = -ENXIO;
 	struct msm_spi_platform_data *pdata;
 	char boot_marker[40];
-
-		pr_err("wbl msm_spi_probe enter :\n");
-		pr_err("wbl 2  msm_spi_probe enter :\n");
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct msm_spi));
 	if (!master) {

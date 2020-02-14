@@ -96,7 +96,6 @@ int xhci_handshake_check_state(struct xhci_hcd *xhci,
 	return -ETIMEDOUT;
 }
 
-
 /*
  * Disable interrupts and begin the xHCI halting process.
  */
