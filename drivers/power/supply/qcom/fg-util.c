@@ -264,7 +264,8 @@ static inline bool fg_sram_address_valid(u16 address, int len)
 int fg_sram_write(struct fg_chip *chip, u16 address, u8 offset,
 			u8 *val, int len, int flags)
 {
-	int rc = 0, tries = 0;
+	int rc = 0;
+	bool tried_again = false;
 	bool atomic_access = false;
 
 	if (!chip)
@@ -291,7 +292,7 @@ int fg_sram_write(struct fg_chip *chip, u16 address, u8 offset,
 	} else {
 		flags = FG_IMA_DEFAULT;
 	}
-
+wait:
 	/*
 	 * Atomic access mean waiting upon SOC_UPDATE interrupt from
 	 * FG_ALG and do the transaction after that. This is to make
@@ -300,20 +301,16 @@ int fg_sram_write(struct fg_chip *chip, u16 address, u8 offset,
 	 * FG cycle (~1.47 seconds).
 	 */
 	if (atomic_access) {
-		for (tries = 0; tries < 2; tries++) {
-			/* Wait for SOC_UPDATE completion */
-			rc = wait_for_completion_interruptible_timeout(
-				&chip->soc_update,
-				msecs_to_jiffies(SOC_UPDATE_WAIT_MS));
-			if (rc > 0) {
-				rc = 0;
-				break;
-			} else if (!rc) {
-				rc = -ETIMEDOUT;
-			}
-		}
+		/* Wait for SOC_UPDATE completion */
+		rc = wait_for_completion_interruptible_timeout(
+			&chip->soc_update,
+			msecs_to_jiffies(SOC_UPDATE_WAIT_MS));
 
-		if (rc < 0) {
+		/* If we were interrupted wait again one more time. */
+		if (rc == -ERESTARTSYS && !tried_again) {
+			tried_again = true;
+			goto wait;
+		} else if (rc <= 0) {
 			pr_err("wait for soc_update timed out rc=%d\n", rc);
 			goto out;
 		}

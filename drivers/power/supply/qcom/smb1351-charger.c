@@ -395,6 +395,8 @@
 
 #define ADC_TM_WARM_COOL_THR_ENABLE		ADC_TM_HIGH_LOW_THR_ENABLE
 
+extern int i2c_devinfo_device_write(char* buf);
+
 enum reason {
 	USER	= BIT(0),
 	THERMAL = BIT(1),
@@ -1417,7 +1419,6 @@ static enum power_supply_property smb1351_parallel_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_PARALLEL_MODE,
 	POWER_SUPPLY_PROP_INPUT_SUSPEND,
-	POWER_SUPPLY_PROP_MODEL_NAME,
 };
 
 static int smb1351_parallel_set_chg_suspend(struct smb1351_charger *chip,
@@ -1428,8 +1429,7 @@ static int smb1351_parallel_set_chg_suspend(struct smb1351_charger *chip,
 
 	if (chip->parallel_charger_suspended == suspend) {
 		pr_debug("Skip same state request suspended = %d suspend=%d\n",
-				chip->parallel_charger_suspended, !suspend);
-		return 0;
+				chip->parallel_charger_suspended, !suspend);		
 	}
 
 	if (!suspend) {
@@ -1523,6 +1523,15 @@ static int smb1351_parallel_set_chg_suspend(struct smb1351_charger *chip,
 		}
 		chip->parallel_charger_suspended = false;
 	} else {
+		smb1351_enable_volatile_writes(chip);
+		/* control USB suspend via command bits */
+		rc = smb1351_masked_write(chip, VARIOUS_FUNC_REG,
+					APSD_EN_BIT | SUSPEND_MODE_CTRL_BIT,
+						SUSPEND_MODE_CTRL_BY_I2C);
+		if (rc) {
+			pr_err("Couldn't set USB suspend rc=%d\n", rc);
+			return rc;
+		}
 		rc = smb1351_usb_suspend(chip, CURRENT, true);
 		if (rc)
 			pr_debug("failed to suspend rc=%d\n", rc);
@@ -1711,9 +1720,6 @@ static int smb1351_parallel_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		val->intval = chip->parallel_charger_suspended;
-		break;
-	case POWER_SUPPLY_PROP_MODEL_NAME:
-		val->strval = "smb1351";
 		break;
 	default:
 		return -EINVAL;
@@ -3177,6 +3183,7 @@ static int smb1351_parallel_charger_probe(struct i2c_client *client,
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
 		pr_err("Couldn't allocate memory\n");
+		i2c_devinfo_device_write("parallel-charge:0;");
 		return -ENOMEM;
 	}
 
@@ -3231,6 +3238,7 @@ static int smb1351_parallel_charger_probe(struct i2c_client *client,
 	if (IS_ERR(chip->parallel_psy)) {
 		pr_err("Couldn't register parallel psy rc=%ld\n",
 				PTR_ERR(chip->parallel_psy));
+		i2c_devinfo_device_write("parallel-charge:0;");
 		return rc;
 	}
 
@@ -3238,6 +3246,8 @@ static int smb1351_parallel_charger_probe(struct i2c_client *client,
 	mutex_init(&chip->irq_complete);
 
 	create_debugfs_entries(chip);
+
+	i2c_devinfo_device_write("parallel-charge:1;");
 
 	pr_info("smb1351 parallel successfully probed.\n");
 
@@ -3262,14 +3272,6 @@ static int smb1351_charger_remove(struct i2c_client *client)
 	mutex_destroy(&chip->irq_complete);
 	debugfs_remove_recursive(chip->debug_root);
 	return 0;
-}
-
-static void smb1351_charger_shutdown(struct i2c_client *client)
-{
-	struct smb1351_charger *chip = i2c_get_clientdata(client);
-
-	if (!chip->parallel_charger_suspended)
-		smb1351_usb_suspend(chip, USER, true);
 }
 
 static int smb1351_suspend(struct device *dev)
@@ -3351,7 +3353,6 @@ static struct i2c_driver smb1351_charger_driver = {
 	},
 	.probe		= smb1351_charger_probe,
 	.remove		= smb1351_charger_remove,
-	.shutdown	= smb1351_charger_shutdown,
 	.id_table	= smb1351_charger_id,
 };
 

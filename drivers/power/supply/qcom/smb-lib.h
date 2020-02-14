@@ -19,6 +19,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/extcon.h>
 #include "storm-watch.h"
+#include <linux/wakelock.h>
 
 enum print_reason {
 	PR_INTERRUPT	= BIT(0),
@@ -65,9 +66,7 @@ enum print_reason {
 #define OTG_DELAY_VOTER			"OTG_DELAY_VOTER"
 #define USBIN_I_VOTER			"USBIN_I_VOTER"
 #define WEAK_CHARGER_VOTER		"WEAK_CHARGER_VOTER"
-#define WBC_VOTER			"WBC_VOTER"
 #define OV_VOTER			"OV_VOTER"
-#define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
 
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
@@ -87,7 +86,6 @@ enum {
 	QC_AUTH_INTERRUPT_WA_BIT	= BIT(3),
 	OTG_WA				= BIT(4),
 	OV_IRQ_WA_BIT			= BIT(5),
-	TYPEC_PBS_WA_BIT		= BIT(6),
 };
 
 enum smb_irq_index {
@@ -130,12 +128,6 @@ enum smb_irq_index {
 	TEMPERATURE_CHANGE_IRQ,
 	SWITCH_POWER_OK_IRQ,
 	SMB_IRQ_MAX,
-};
-
-enum try_sink_exit_mode {
-	ATTACHED_SRC = 0,
-	ATTACHED_SINK,
-	UNATTACHED_SINK,
 };
 
 struct smb_irq_info {
@@ -235,6 +227,7 @@ struct reg_info {
 };
 
 struct smb_charger {
+	
 	struct device		*dev;
 	char			*name;
 	struct regmap		*regmap;
@@ -242,7 +235,6 @@ struct smb_charger {
 	struct smb_params	param;
 	struct smb_iio		iio;
 	int			*debug_mask;
-	int			*try_sink_enabled;
 	enum smb_mode		mode;
 	struct smb_chg_freq	chg_freq;
 	int			smb_version;
@@ -255,6 +247,7 @@ struct smb_charger {
 	struct mutex		ps_change_lock;
 	struct mutex		otg_oc_lock;
 	struct mutex		vconn_oc_lock;
+	struct wake_lock	protect_temp_wakelock;
 
 	/* power supplies */
 	struct power_supply		*batt_psy;
@@ -264,6 +257,9 @@ struct smb_charger {
 	struct power_supply_desc	usb_psy_desc;
 	struct power_supply		*usb_main_psy;
 	struct power_supply		*usb_port_psy;
+
+	struct power_supply             *pl_psy;
+	
 	enum power_supply_type		real_charger_type;
 
 	/* notifiers */
@@ -276,6 +272,12 @@ struct smb_charger {
 	struct smb_regulator	*vbus_vreg;
 	struct smb_regulator	*vconn_vreg;
 	struct regulator	*dpdm_reg;
+
+	/*for usb temp protect funtion*/
+	struct qpnp_vadc_chip	*vadc_dev;
+	bool				protect_temp_by_d_work;
+	struct delayed_work		protect_temp_work;
+	int                            gpio45;
 
 	/* votables */
 	struct votable		*dc_suspend_votable;
@@ -323,6 +325,9 @@ struct smb_charger {
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	bool			step_chg_enabled;
+
+	int			charging_enabled;
+	
 	bool			sw_jeita_enabled;
 	bool			is_hdc;
 	bool			chg_done;
@@ -347,13 +352,11 @@ struct smb_charger {
 	u8			float_cfg;
 	bool			use_extcon;
 	bool			otg_present;
-	bool			fcc_stepper_mode;
 
 	/* workaround flag */
 	u32			wa_flags;
 	bool			cc2_detach_wa_active;
 	bool			typec_en_dis_active;
-	bool			try_sink_active;
 	int			boost_current_ua;
 	int			temp_speed_reading_count;
 
@@ -434,8 +437,20 @@ int smblib_get_prop_system_temp_level(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_get_prop_input_current_limited(struct smb_charger *chg,
 				union power_supply_propval *val);
+int smblib_get_prop_batt_voltage_now(struct smb_charger *chg,
+				union power_supply_propval *val);
+int smblib_get_prop_batt_current_now(struct smb_charger *chg,
+				union power_supply_propval *val);
+int smblib_get_prop_batt_temp(struct smb_charger *chg,
+				union power_supply_propval *val);
+int smblib_get_prop_batt_charge_counter(struct smb_charger *chg,
+				union power_supply_propval *val);
 int smblib_set_prop_input_suspend(struct smb_charger *chg,
 				const union power_supply_propval *val);
+
+int lct_set_prop_input_suspend(struct smb_charger *chg,
+				const union power_supply_propval *val);
+
 int smblib_set_prop_batt_capacity(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_set_prop_system_temp_level(struct smb_charger *chg,
@@ -453,6 +468,8 @@ int smblib_set_prop_dc_current_max(struct smb_charger *chg,
 				const union power_supply_propval *val);
 
 int smblib_get_prop_usb_present(struct smb_charger *chg,
+				union power_supply_propval *val);
+int smblib_get_prop_usb_health(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_get_prop_usb_online(struct smb_charger *chg,
 				union power_supply_propval *val);
@@ -521,12 +538,8 @@ int smblib_get_icl_current(struct smb_charger *chg, int *icl_ua);
 int smblib_get_charge_current(struct smb_charger *chg, int *total_current_ua);
 int smblib_get_prop_pr_swap_in_progress(struct smb_charger *chg,
 				union power_supply_propval *val);
-int smblib_get_prop_from_bms(struct smb_charger *chg,
-				enum power_supply_property psp,
-				union power_supply_propval *val);
 int smblib_set_prop_pr_swap_in_progress(struct smb_charger *chg,
 				const union power_supply_propval *val);
-void smblib_usb_typec_change(struct smb_charger *chg);
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);
