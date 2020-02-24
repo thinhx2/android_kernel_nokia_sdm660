@@ -18,7 +18,7 @@ export CROSS_COMPILE=$path/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 mkdir output
 make -C $(pwd) O=output SAT-perf_defconfig
 make -j32 -C $(pwd) O=output
-cp -r out/arch/arm64/boot/Image.gz-dtb $path/kernel/DRG_sprout
+cp -r output/arch/arm64/boot/Image.gz-dtb $path/kernel/DRG_sprout
 cd DRG_sprout
 zip -r Black_Caps-Edition-10.0-GCC-FIH-SDM660-2018-$(date +"%Y%m%d").zip META-INF patch tools Image.gz-dtb anykernel.sh
 cp -r Black_Caps-Edition-10.0-GCC-FIH-SDM660-2018-$(date +"%Y%m%d").zip $path/Black_Caps-Edition
