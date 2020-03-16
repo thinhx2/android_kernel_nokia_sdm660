@@ -293,6 +293,12 @@ dtb-$(CONFIG_ARCH_SDM660) += sdm660-sim.dtb \
 dtb-$(CONFIG_ZANGYA_CAMERA) += zangya-sdm636.dtb
 dtb-$(CONFIG_ZANGYAPRO_CAMERA) += zangyapro-sdm636.dtb
 
+dtb-$(CONFIG_PRODUCT_ZERO6) += zero6-sdm636.dtb \
+        zero6pro-sdm660.dtb
+
+dtb-$(CONFIG_PRODUCT_ZERO6PRO) += zero6-sdm636.dtb \
+        zero6pro-sdm660.dtb
+
 dtb-$(CONFIG_ARCH_SDM630) += sdm630-rumi.dtb \
 	sdm630-pm660a-rumi.dtb \
 	sdm630-usbc-audio-mtp.dtb \

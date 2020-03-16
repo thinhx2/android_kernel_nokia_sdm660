@@ -1,4 +1,4 @@
-/* Copyright (c) 2017,2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1032,18 +1032,16 @@ int qcom_batt_init(void)
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
-
+#if defined(CONFIG_PRODUCT_ZERO6) || defined(CONFIG_PRODUCT_ZERO6PRO)
+	chip->slave_pct = 50;
+#else
 	chip->slave_pct = 70;
-
+#endif
 	chip->restricted_current = DEFAULT_RESTRICTED_CURRENT_UA;
 
 	chip->pl_ws = wakeup_source_register("qcom-battery");
 	if (!chip->pl_ws)
 		goto cleanup;
-
-	INIT_DELAYED_WORK(&chip->status_change_work, status_change_work);
-	INIT_DELAYED_WORK(&chip->pl_taper_work, pl_taper_work);
-	INIT_WORK(&chip->pl_disable_forever_work, pl_disable_forever_work);
 
 	chip->fcc_votable = create_votable("FCC", VOTE_MIN,
 					pl_fcc_vote_callback,
@@ -1098,6 +1096,10 @@ int qcom_batt_init(void)
 	}
 
 	vote(chip->pl_disable_votable, PL_INDIRECT_VOTER, true, 0);
+
+	INIT_DELAYED_WORK(&chip->status_change_work, status_change_work);
+	INIT_DELAYED_WORK(&chip->pl_taper_work, pl_taper_work);
+	INIT_WORK(&chip->pl_disable_forever_work, pl_disable_forever_work);
 
 	rc = pl_register_notifier(chip);
 	if (rc < 0) {

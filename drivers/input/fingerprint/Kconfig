@@ -14,5 +14,6 @@ config FINGERPRINT_FPC1020
 	say y here to enable fpc1020 fingerprint driver support!
 
 source "drivers/input/fingerprint/goodix/Kconfig"
+source "drivers/input/fingerprint/goodix_zero/Kconfig"
 
 endif

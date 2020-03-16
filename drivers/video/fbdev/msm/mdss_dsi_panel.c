@@ -508,6 +508,14 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		}
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_NT36xxx
+		if(dsi_ts->dsi_nvt_gesture_en) {
+			gpio_set_value((ctrl_pdata->rst_gpio), 1);
+		} else {
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		}
+#endif
+
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->lcd_mode_sel_gpio)) {
 			gpio_set_value(ctrl_pdata->lcd_mode_sel_gpio, 0);
